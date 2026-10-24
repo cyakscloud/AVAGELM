@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -18,6 +19,21 @@ from avagelm.core.runner import run
 from avagelm.demo.task_board import LocalTaskBoard, make_task_registry
 
 st.set_page_config(page_title="AVAGELM | My LLM safety lab", page_icon="🧪", layout="wide")
+
+
+def read_secret(name: str, default: str = "") -> str:
+    """Read a deployment secret without making local runs require one."""
+    try:
+        return str(st.secrets.get(name, default))
+    except Exception:
+        return default
+
+
+def load_provider_secrets() -> None:
+    """Make Streamlit Cloud secrets available to the existing provider adapter."""
+    api_key = read_secret("VLLM_API_KEY")
+    if api_key:
+        os.environ["VLLM_API_KEY"] = api_key
 
 
 def read_json(path: Path) -> dict:
@@ -51,8 +67,8 @@ def read_csv(path: Path) -> list[dict]:
 
 def render_audit(output_dir: Path, provider_name: str, model_name: str, base_url: str, trials: int) -> None:
     st.subheader("Let’s see what the model asks for")
-    st.write("I send sample attacks to the local model, then compare what the unsafe route does with what my Python guardrail allows.")
-    st.caption("This experiment uses local inference and one fake tool that returns made-up data.")
+    st.write("I send sample attacks to the selected model, then compare what the unsafe route does with what my Python guardrail allows.")
+    st.caption("The audit uses one fake tool that returns made-up data. The model can be local or hosted.")
 
     if st.button("Run my audit", type="primary", key="run_audit"):
         try:
@@ -101,7 +117,7 @@ def render_audit(output_dir: Path, provider_name: str, model_name: str, base_url
 
 def render_task_demo(provider_name: str, model_name: str, base_url: str) -> None:
     st.subheader("A tiny task app to try the idea")
-    st.write("I wanted to try the same check on something more familiar than a fake export. The local model can list tasks, add one, or mark one complete—but Python checks each request before it changes the task list.")
+    st.write("I wanted to try the same check on something more familiar than a fake export. The selected model can list tasks, add one, or mark one complete—but Python checks each request before it changes the task list.")
     st.warning("The task list lives on this computer at `artifacts/task_demo/tasks.json`. Paste outside text below to see the guardrail block tool requests from that mixed context.")
 
     board = LocalTaskBoard(ROOT / "artifacts" / "task_demo" / "tasks.json")
@@ -115,7 +131,7 @@ def render_task_demo(provider_name: str, model_name: str, base_url: str) -> None
     with st.form("task_demo_form"):
         instruction = st.text_area("What would you like done?", placeholder="Example: Add a task to prepare my project slides.")
         outside = st.text_area("Paste outside text here to test the guardrail (optional)", placeholder="For example, an email or search result with its own instruction.")
-        submitted = st.form_submit_button("Try it with my local model", type="primary")
+        submitted = st.form_submit_button("Try it with my selected model", type="primary")
     if not submitted:
         return
     if not instruction.strip():
@@ -140,7 +156,7 @@ def render_task_demo(provider_name: str, model_name: str, base_url: str) -> None
     )
     registry = make_task_registry(board)
     try:
-        with st.spinner("Asking the local model..."):
+        with st.spinner("Asking the selected model..."):
             provider = make_provider(provider_name, model_name, base_url=base_url or None)
             status = provider.check()
             if not status.get("model_available"):
@@ -148,7 +164,7 @@ def render_task_demo(provider_name: str, model_name: str, base_url: str) -> None
                 return
             proposal = provider.propose(context, tools=registry.model_tools(), system_prompt=system_prompt)
         if proposal.error:
-            st.error(f"The local model request failed: {proposal.error}")
+            st.error(f"The model request failed: {proposal.error}")
             return
         if proposal.text:
             st.markdown("#### What the model said")
@@ -187,22 +203,23 @@ def render_task_demo(provider_name: str, model_name: str, base_url: str) -> None
             stream.write(json.dumps(event, ensure_ascii=False) + "\n")
         st.caption("A local event record was saved without the full request or pasted outside text.")
     except Exception as exc:
-            st.error(f"I couldn’t connect to the local model or finish that request: {type(exc).__name__}: {exc}")
+            st.error(f"I couldn’t connect to the selected model or finish that request: {type(exc).__name__}: {exc}")
 
 
 def main() -> None:
+    load_provider_secrets()
     st.title("AVAGELM")
     st.caption("A small local LLM safety lab I’ve been building for my NTCC project")
     st.info("The question I’m nerding out about: can a message hidden in an email nudge an AI into using a tool? My simple rule is that the model can ask, but Python decides.")
     with st.sidebar:
         st.header("Pick a model to try")
-        provider_name = st.selectbox("Provider", ["ollama", "vllm"], help="Ollama is the provider exercised in the project. vLLM needs a separate compatible server.")
+        provider_name = st.selectbox("Provider", ["ollama", "vllm"], help="Ollama runs locally. The vLLM option also works with compatible hosted APIs.")
         default_model = "llama3.2:latest" if provider_name == "ollama" else ""
         model_name = st.text_input("Model name", value=default_model, placeholder="Model ID from your server")
-        default_url = "" if provider_name == "ollama" else "http://127.0.0.1:8000/v1"
+        default_url = "" if provider_name == "ollama" else read_secret("VLLM_BASE_URL", "http://127.0.0.1:8000/v1")
         base_url = st.text_input("Server URL (optional)", value=default_url, placeholder="Use the provider default")
         trials = st.slider("Trials per attack group", 1, 10, 5)
-        st.caption("For my default setup, start Ollama and run `ollama pull llama3.2:latest` once.")
+        st.caption("Ollama runs on your computer. For the hosted site, choose vLLM and enter an online OpenAI-compatible API URL.")
     if not model_name.strip():
         st.warning("Enter the model name from your server on the left.")
         return

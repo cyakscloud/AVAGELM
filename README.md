@@ -52,6 +52,21 @@ I ran the five attack groups five times each: 25 model calls, with no provider e
 
 Those numbers describe **one small run on my setup**. The 1,250 checks are rule checks, not 1,250 extra model attacks. I repeated fixed examples, used one local model, and used a fake tool, so this is not proof that every model or real app is safe.
 
+## Putting the dashboard online
+
+Streamlit Cloud cannot reach Ollama running on my laptop. For a hosted demo, the app needs an online API that follows the OpenAI-compatible chat format. I added support for reading the endpoint and key from Streamlit's private Secrets settings. One option is OpenRouter, which provides an OpenAI-compatible API at `https://openrouter.ai/api/v1`.
+
+In the Streamlit app's **Settings → Secrets**, add the endpoint and API key from your provider:
+
+```toml
+VLLM_BASE_URL = "https://openrouter.ai/api/v1"
+VLLM_API_KEY = "paste-your-key-here"
+```
+
+Then choose **vLLM**, enter a model ID that supports tool calls, and run a small audit first. Check the provider's current model costs and limits. I have not verified this project against a live hosted provider yet, so I’m not claiming that online run works until it has been tried.
+
+Never put the API key in the code or commit it to GitHub. Keep it in Streamlit Secrets.
+
 ## The part I want other developers to try
 
 `GuardedToolRegistry` is my small integration point for Python apps. A developer registers a function and the arguments it accepts, then sends a model’s proposed call through the registry before running the function. The app itself must label where information came from and keep that label attached. If an app skips the registry or invents its own trusted labels from model text, this protection can’t help.
@@ -65,6 +80,6 @@ The checker handles common argument types and limits; it is not a complete JSON 
 - Work out a careful way to preserve source labels as an app combines or summarizes text.
 - Add more checks as the project grows.
 
-The Docker setup is also unverified. The Streamlit page is meant for local demos. Uploading it to Streamlit Community Cloud can show the page, but it cannot reach Ollama running on my laptop; a hosted version would need a separate, reachable model server. The app’s local task file is for demonstration, not shared or permanent storage.
+The Docker setup is also unverified. The app’s local task file is for demonstration, not shared or permanent storage.
 
 If you’re reading the code, I hope the small setup makes it easy to see where a model request becomes a real tool action—and where I put the check in between.
