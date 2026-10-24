@@ -1,0 +1,20 @@
+services:
+  avagelm-dashboard:
+    build: .
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - ./artifacts:/data/artifacts
+    # Run `python main.py --orchestrate ...` on the host while this dashboard
+    # is running; model endpoints remain host-local and are never container-exposed.
+  avagelm-evaluation:
+    build: .
+    profiles: ["evaluation"]
+    command: ["python", "main.py", "--orchestrate", "--trials", "5", "--provider", "ollama", "--model", "llama3.2:latest", "--output", "/data/artifacts"]
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    volumes:
+      - ./artifacts:/data/artifacts
+    # Ollama must already be running on the Windows host. On host Ollama
+    # installations that bind only to loopback, configure its listen address
+    # for Docker Desktop access before using this profile.

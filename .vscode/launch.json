@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "AVAGELM: Check Ollama",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["--check", "--provider", "ollama", "--model", "llama3.2:latest"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "AVAGELM: Run audit",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["--orchestrate", "--trials", "5", "--provider", "ollama", "--model", "llama3.2:latest", "--output", "artifacts"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "AVAGELM: Dashboard",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["--dashboard", "--output", "artifacts"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "AVAGELM: Streamlit",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "streamlit",
+      "args": ["run", "${workspaceFolder}/streamlit_app.py", "--server.address=127.0.0.1"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

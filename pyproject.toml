@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avagelm"
+version = "0.1.0"
+description = "Local evaluation harness for provenance-aware guardrails in tool-augmented LLMs"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+signing = ["cryptography>=42"]
+ui = ["streamlit>=1.58,<2"]
+dev = ["streamlit>=1.58,<2", "cryptography>=42"]
+
+[project.scripts]
+avagelm = "avagelm.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
